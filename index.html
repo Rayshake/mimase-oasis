@@ -32,6 +32,26 @@
   #statusMsg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; display: block; }
   #statusMsg.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; display: block; }
   @media (max-width: 600px) { header h1 { display: block; margin: 0.5rem 0 0 0; } }
+  .guestbook-entry {
+  border-left: 4px solid #0077b6;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.2rem;
+  background: #f0f8ff;
+  border-radius: 0 6px 6px 0;
+}
+.guestbook-entry .gb-meta {
+  font-size: 0.82rem;
+  color: #666;
+  margin-bottom: 0.3rem;
+}
+.guestbook-entry .gb-name {
+  font-weight: 700;
+  color: #0077b6;
+}
+.guestbook-entry .gb-message {
+  line-height: 1.5;
+  white-space: pre-wrap;   /* preserves line breaks */
+}
 </style>
 </head>
 <body>
@@ -96,6 +116,36 @@
     <div id="calendarGrid"></div>
     <p><span style="background:#ff6b6b;color:white;padding:0 6px;border-radius:3px;">Geboekt</span> | <span style="background:#90ee90;padding:0 6px;border-radius:3px;">Beschikbaar</span></p>
   </div>
+</section>
+
+<section class="booking" id="guestbookSection">
+  <h2>Gastenboek</h2>
+
+  <!-- Existing comments -->
+  <div id="guestbookEntries">
+    <p id="guestbookLoading">Berichten laden...</p>
+  </div>
+
+  <hr style="margin: 2rem 0; border-color: #eee;" />
+
+  <!-- New comment form -->
+  <h3>Laat een bericht achter</h3>
+  <form id="guestbookForm">
+    <label for="gbName">Uw naam *</label>
+    <input type="text" id="gbName" maxlength="80" placeholder="Voornaam en achternaam" required />
+
+    <label for="gbLocation">Woonplaats / Land (optioneel)</label>
+    <input type="text" id="gbLocation" maxlength="80" placeholder="bijv. Amsterdam, Nederland" />
+
+    <label for="gbMessage">Uw bericht * (max. 1000 tekens)</label>
+    <textarea id="gbMessage" maxlength="1000" rows="4" required
+      style="width:100%;padding:0.5rem;font-size:1rem;border-radius:4px;border:1px solid #ccc;
+             box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
+    <div id="gbCharCount" style="font-size:0.8rem;color:#888;text-align:right;">0 / 1000</div>
+
+    <button type="submit" id="gbSubmitBtn">Bericht plaatsen</button>
+  </form>
+  <div id="gbStatusMsg" style="margin-top:1rem;padding:0.75rem;border-radius:4px;display:none;"></div>
 </section>
 
 </main>
@@ -271,6 +321,113 @@
   // ── Initial load ─────────────────────────────────────────────────
   const now = new Date();
   renderCalendar(now.getFullYear(), now.getMonth());
+</script>
+
+<script>
+// ── Guestbook ─────────────────────────────────────────────────────────────────
+// db and SUPABASE_URL are already defined in your existing script above
+
+const GUESTBOOK_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/submit-guestbook`;
+
+// Format a date nicely in Dutch
+function formatDate(isoString) {
+  return new Date(isoString).toLocaleDateString('nl-NL', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
+}
+
+// Load and render approved guestbook entries
+async function loadGuestbook() {
+  const container = document.getElementById('guestbookEntries');
+  const { data, error } = await db
+    .from('guestbook')
+    .select('name, location, message, created_at')
+    .order('created_at', { ascending: false });  // newest first
+
+  if (error || !data || data.length === 0) {
+    container.innerHTML = '<p style="color:#888;">Nog geen berichten. Wees de eerste!</p>';
+    return;
+  }
+
+  container.innerHTML = data.map(entry => `
+    <div class="guestbook-entry">
+      <div class="gb-meta">
+        <span class="gb-name">${escapeHtml(entry.name)}</span>
+        ${entry.location ? `&nbsp;·&nbsp;${escapeHtml(entry.location)}` : ''}
+        &nbsp;·&nbsp;${formatDate(entry.created_at)}
+      </div>
+      <div class="gb-message">${escapeHtml(entry.message)}</div>
+    </div>
+  `).join('');
+}
+
+// Prevent XSS — always escape user content before inserting into the DOM
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Character counter for the message textarea
+const gbMessage = document.getElementById('gbMessage');
+const gbCharCount = document.getElementById('gbCharCount');
+gbMessage.addEventListener('input', () => {
+  gbCharCount.textContent = `${gbMessage.value.length} / 1000`;
+});
+
+// Guestbook form submission
+const guestbookForm = document.getElementById('guestbookForm');
+const gbSubmitBtn   = document.getElementById('gbSubmitBtn');
+const gbStatusMsg   = document.getElementById('gbStatusMsg');
+
+function showGbStatus(type, text) {
+  gbStatusMsg.style.display = 'block';
+  gbStatusMsg.style.background  = type === 'success' ? '#d4edda' : '#f8d7da';
+  gbStatusMsg.style.color       = type === 'success' ? '#155724' : '#721c24';
+  gbStatusMsg.style.border      = type === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+  gbStatusMsg.textContent = text;
+}
+
+guestbookForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  gbStatusMsg.style.display = 'none';
+  gbSubmitBtn.disabled = true;
+  gbSubmitBtn.textContent = 'Verzenden...';
+
+  const payload = {
+    name:     document.getElementById('gbName').value.trim(),
+    location: document.getElementById('gbLocation').value.trim(),
+    message:  gbMessage.value.trim(),
+  };
+
+  try {
+    const res = await fetch(GUESTBOOK_FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+
+    if (!res.ok) throw new Error(result.error || 'Onbekende fout');
+
+    showGbStatus('success',
+      '✅ Bedankt voor uw bericht! Het wordt zichtbaar na goedkeuring.');
+    guestbookForm.reset();
+    gbCharCount.textContent = '0 / 1000';
+
+  } catch (err) {
+    showGbStatus('error', `❌ Fout: ${err.message}`);
+  } finally {
+    gbSubmitBtn.disabled = false;
+    gbSubmitBtn.textContent = 'Bericht plaatsen';
+  }
+});
+
+// Load guestbook on page load
+loadGuestbook();
 </script>
 
 </body>
