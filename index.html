@@ -281,14 +281,8 @@
       }
     }
 
-    // ── Write the booking to Supabase ──
+// ── Write the booking to Supabase ──
     submitBtn.textContent = 'Boeken...';
-//    const { error } = await db.from('bookings').insert([{
-//      checkin:  checkinVal,
-//      checkout: checkoutVal,
-//     guests,
-//     name,
-//     email
     const response = await fetch(
       'https://rvaazwbavzeicwgciowi.supabase.co/functions/v1/create-booking',
       {
@@ -298,16 +292,13 @@
       }
     );
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error);
-//    }]);
 
     submitBtn.disabled = false;
     submitBtn.textContent = 'Boek Nu';
 
-    if (error) {
-      console.error(error);
+    if (!response.ok) {
       statusMsg.className = 'error';
-      statusMsg.textContent = 'Er is een fout opgetreden. Probeer het later opnieuw.';
+      statusMsg.textContent = `Fout: ${result.error || 'Onbekende fout'}`;
     } else {
       statusMsg.className = 'success';
       statusMsg.textContent = 'Boeking succesvol ontvangen! We nemen contact met u op voor de bevestiging.';
