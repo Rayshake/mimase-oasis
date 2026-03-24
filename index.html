@@ -406,7 +406,7 @@ guestbookForm.addEventListener('submit', async (e) => {
   try {
     const res = await fetch(GUESTBOOK_FUNCTION_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${SUPABASE_ANON}` },
+      headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${SUPABASE_ANON}`},
       body: JSON.stringify(payload)
     });
     const result = await res.json();
