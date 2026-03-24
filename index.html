@@ -232,7 +232,7 @@
   // ── 1. Initialize Supabase ──────────────────────────────────────────
  
  async function loadData() {
-  const SUPABASE_URL = 'https://onoreekuxgfkhoukalcq.supabase.com'; // ← paste yours
+  const SUPABASE_URL = 'https://onoreekuxgfkhoukalcq.supabase.co'; // ← paste yours
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ub3JlZWt1eGdma2hvdWthbGNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNDk4NTUsImV4cCI6MjA4OTkyNTg1NX0.FCp7sLlEDXkK3FnL9K4G4SxYebDtA4FKW0C34yF-F7s';           // ← paste yours
   const { createClient } = supabase;
   const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
